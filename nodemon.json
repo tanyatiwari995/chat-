@@ -1,0 +1,9 @@
+{
+    "watch": [
+      "src"
+    ],
+    "ignore": [],
+    "ext": "js, json",
+    "exec": "node src/index.js",
+    "delay": 1000
+  }
