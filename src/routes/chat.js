@@ -2,8 +2,9 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import Message from "../models/Message.js";  
+import auth from '../middleware/auth.js';  
 
-import Message from "./models/Message.js"
 const router = express.Router();
 
 // Multer setup for file uploads
@@ -14,7 +15,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// 📩 Get chat history between two users
+//  Get chat history between two users
 router.get('/:user1/:user2', async (req, res) => {
   const { user1, user2 } = req.params;
   try {
@@ -51,7 +52,7 @@ router.post('/react/:id', async (req, res) => {
   }
 });
 
-// 👁️ Mark messages in a chat as read
+// Mark messages in a chat as read
 router.post('/read/:chatId', async (req, res) => {
   const { userId } = req.body;
   try {
@@ -65,7 +66,7 @@ router.post('/read/:chatId', async (req, res) => {
   }
 });
 
-// ✏️ Edit a message
+//  Edit a message
 router.put('/edit/:id', async (req, res) => {
   const { text } = req.body;
   try {
@@ -84,6 +85,23 @@ router.delete('/:id', async (req, res) => {
   try {
     await Message.findByIdAndDelete(req.params.id);
     res.sendStatus(204);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 💬 Send a new message (protected route, requires authentication)
+router.post('/send', auth, async (req, res) => {
+  const { text, sender, receiver } = req.body;
+  try {
+    const newMessage = new Message({
+      text,
+      sender,
+      receiver,
+      createdAt: Date.now(),
+    });
+    await newMessage.save();
+    res.status(201).json({ message: 'Message sent!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

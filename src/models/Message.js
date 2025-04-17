@@ -1,24 +1,4 @@
-// const mongoose = require('mongoose');
-
-// const messageSchema = new mongoose.Schema({
-//   sender: String,
-//   receiver: String,
-//   group: String, // null if 1-on-1 chat
-//   text: String,
-//   createdAt: { type: Date, default: Date.now },
-// });
-
-// module.exports = mongoose.model('Message', messageSchema);
-// reactions: [
-//     {
-//       userId: mongoose.Schema.Types.ObjectId,
-//       emoji: String,
-//     },
-//   ],
-//   readBy: [mongoose.Schema.Types.ObjectId],
-
-
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
   sender: {
@@ -63,4 +43,5 @@ const messageSchema = new mongoose.Schema({
 });
 
 // module.exports = mongoose.model('Message', messageSchema);
-module.exports = mongoose.model('Message', messageSchema);
+
+export default mongoose.model("Message", messageSchema);

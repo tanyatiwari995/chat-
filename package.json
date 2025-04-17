@@ -1,7 +1,7 @@
 {
   "name": "sartop",
   "version": "1.0.0",
-  "description": "A brief description of your project.",
+  "description": "A ChatApp.",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -22,12 +22,16 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "ejs": "^3.1.10",
-    "express": "^4.17.1",
+    "express": "^4.21.2",
     "express-session": "^1.18.1",
     "graphql-passport": "^0.6.8",
     "helmet": "^8.1.0",
     "mongoose": "^8.13.2",
-    "passport": "^0.7.0"
+    "multer": "^1.4.5-lts.2",
+    "passport": "^0.7.0",
+    "passport-local": "^1.0.0",
+    "path": "^0.12.7",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "supports-color": "^10.0.0",

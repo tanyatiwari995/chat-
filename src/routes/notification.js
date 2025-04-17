@@ -10,6 +10,7 @@ router.get('/:userId', async (req, res) => {
     const notifications = await Notification.find({ userId });
     res.json(notifications);
   } catch (err) {
+    
     res.status(500).json({ error: err.message });
   }
 });
