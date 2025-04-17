@@ -284,6 +284,9 @@ import chatRoutes from "./routes/chat.js";
 // import Message from "./models/Message.js"; // ✅ if Message.js is in src/models/
 // import Message from "./models/Message.js";
 import Message from "./models/Message.js";
+import notificationRoutes from './routes/notification.js';
+app.use('/api/notifications', notificationRoutes);
+
 // Load .env config
 dotenv.config();
 const port = process.env.PORT || 4000;
