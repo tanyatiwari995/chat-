@@ -18,15 +18,14 @@ import notificationRoutes from './routes/notification.js';
 import typingRoutes from './routes/typing.js';
 import messageRoutes from './routes/message.js';
 import { router as groupRoutes } from './routes/group.js';
-import socketHandler from "./socket.js"; // Ensure this is imported correctly
-
+import socketHandler from "./socket.js"; 
 // Configure Passport
 import { configurePassport } from "./passport/passport.config.js";
 configurePassport();
 
 // Load .env config
 dotenv.config();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT ;
 const uri = process.env.MONGO_URI;
 const secret = process.env.SESSION_SECRET;
 
