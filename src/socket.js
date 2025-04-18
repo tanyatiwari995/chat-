@@ -1,9 +1,19 @@
+import { Server } from "socket.io"; // Correct import
+import http from "http";
+import express from "express";
 import User from './models/user.model.js';
 import Message from './models/Message.js';
 
 const onlineUsers = new Map();
 
-const socketHandler = (io) => {
+const socketHandler = (httpServer) => {
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*", // Adjust this based on your frontend origin
+      methods: ["GET", "POST"],
+    },
+  });
+
   io.on('connection', (socket) => {
     const userId = socket.handshake.query.userId;
     if (userId) {
@@ -66,6 +76,8 @@ const socketHandler = (io) => {
       await User.findOneAndUpdate({ socketId: socket.id }, { socketId: null });
     });
   });
+
+  return io;
 };
 
 export default socketHandler;

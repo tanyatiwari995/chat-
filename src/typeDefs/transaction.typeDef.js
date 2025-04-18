@@ -1,6 +1,3 @@
-
-
-
 const transactionTypeDef = `
   type Transaction {
     _id: ID!

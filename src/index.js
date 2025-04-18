@@ -1,16 +1,28 @@
 import express from "express";
 import http from "http";
 import cors from "cors";
-import dotenv from "dotenv";
-import passport from "passport";
 import session from "express-session";
 import connectMongo from "connect-mongodb-session";
+import passport from "passport";
+import dotenv from "dotenv";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
-import { buildContext } from "graphql-passport";
 import helmet from "helmet";
-import { Server as SocketIOServer } from "socket.io";
+import { buildContext } from "graphql-passport";
+
+// Import routes
+import authRoutes from "./routes/auth.js";
+import chatRoutes from "./routes/chat.js";
+import notificationRoutes from './routes/notification.js';
+import typingRoutes from './routes/typing.js';
+import messageRoutes from './routes/message.js';
+import { router as groupRoutes } from './routes/group.js';
+import socketHandler from "./socket.js"; // Ensure this is imported correctly
+
+// Configure Passport
+import { configurePassport } from "./passport/passport.config.js";
+configurePassport();
 
 // Load .env config
 dotenv.config();
@@ -30,14 +42,14 @@ store.on("error", (error) => console.log("Session store error:", error.message))
 const app = express();
 const httpServer = http.createServer(app);
 
-// Socket.IO setup
-const io = new SocketIOServer(httpServer, {
+// Correct import: Use `Server` from `socket.io`
+import { Server } from "socket.io";
+const io = new Server(httpServer, {
   cors: { origin: "*" },
 });
-import socketHandler from "./socket.js";
 socketHandler(io); // Attach your Socket.IO logic
 
-// Middleware
+// Middleware setup
 app.use(
   cors({
     credentials: true,
@@ -46,44 +58,29 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.use(express.json()); // ✅ This should come BEFORE route usage
+app.use(express.json());
 app.use(helmet());
 app.use(
   session({
     secret,
     resave: false,
     saveUninitialized: false,
-    cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-      httpOnly: true,
-    },
+    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7, httpOnly: true },
     store,
   })
 );
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Configure Passport
-import { configurePassport } from "./passport/passport.config.js";
-configurePassport();
-
-// Import and setup routes
-import authRoutes from "./routes/auth.js";
-import chatRoutes from "./routes/chat.js";
-import notificationRoutes from './routes/notification.js';
-import typingRoutes from './routes/typing.js';
-import messageRoutes from './routes/message.js';
-import { router as groupRoutes } from './routes/group.js'; // Import only the router
-
 // Use routes
 app.use("/api/messages", messageRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/typing", typingRoutes); 
-app.use("/api/groups", groupRoutes); // Add group routes here
+app.use("/api/typing", typingRoutes);
+app.use("/api/groups", groupRoutes); // Group routes setup
 
-// Apollo GraphQL server
+// Apollo GraphQL server setup
 import mergedTypeDef from "./typeDefs/index.js";
 import mergedResolvers from "./resolvers/index.js";
 const server = new ApolloServer({
@@ -111,13 +108,13 @@ process.on("SIGTERM", async () => {
   console.log("Server shut down gracefully");
 });
 
-// Error handler
+// Error handler middleware
 app.use((err, req, res, next) => {
   console.error("Internal server error:", err.stack);
   res.status(500).json({ message: "Something broke!" });
 });
 
-// Start server
+// Start the server
 httpServer.listen(port, () => {
   console.log(`🚀 Server ready at http://localhost:${port}`);
 });
