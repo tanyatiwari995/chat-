@@ -1,12 +1,12 @@
-import express from 'express';
-import User from '../models/user.model.js';
-import bcrypt from 'bcryptjs';
-import auth from '../middleware/auth.js'; // Import authentication middleware
+import express from "express";
+import User from "../models/user.model.js";
+import bcrypt from "bcryptjs";
+import auth from "../middleware/auth.js"; // Import authentication middleware
 
 const router = express.Router();
 
 // POST /login (Login or create user with profilePicture fallback)
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   const { username, profilePicture } = req.body;
 
   if (!username) {
@@ -18,18 +18,19 @@ router.post('/login', async (req, res) => {
 
     if (!user) {
       // Create a new user with default information (and hash the password)
-      const hashedPassword = await bcrypt.hash('123456', 10); // Hash the default password
+      const hashedPassword = await bcrypt.hash("123456", 10); // Hash the default password
 
       user = await User.create({
         username,
         name: "Anonymous", // default name, can be changed
         password: hashedPassword, // hashed password
-        profilePicture: profilePicture || "https://example.com/default-avatar.png",
+        profilePicture:
+          profilePicture || "https://example.com/default-avatar.png",
         gender: "Other", // optional default
       });
     } else {
       // If the user exists, check the password (though it's not used in the default scenario)
-      const match = await bcrypt.compare('123456', user.password); // Only for the default user case
+      const match = await bcrypt.compare("123456", user.password); // Only for the default user case
       if (!match) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -53,7 +54,13 @@ router.post('/login', async (req, res) => {
 
 // POST /signup (Sign up a new user)
 router.post("/signup", async (req, res) => {
-  const { username, name, password, profilePicture = "https://example.com/default-avatar.png", gender } = req.body;
+  const {
+    username,
+    name,
+    password,
+    profilePicture = "https://example.com/default-avatar.png",
+    gender,
+  } = req.body;
 
   if (!username || !name || !password) {
     return res.status(400).json({ message: "Required fields missing" });

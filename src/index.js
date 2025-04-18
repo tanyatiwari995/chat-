@@ -1,3 +1,5 @@
+// index.js or server.js
+
 import express from "express";
 import http from "http";
 import cors from "cors";
@@ -5,27 +7,16 @@ import session from "express-session";
 import connectMongo from "connect-mongodb-session";
 import passport from "passport";
 import dotenv from "dotenv";
+import helmet from "helmet";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
-import helmet from "helmet";
 import { buildContext } from "graphql-passport";
+import { Server } from "socket.io";
 
-// Import routes
-import authRoutes from "./routes/auth.js";
-import chatRoutes from "./routes/chat.js";
-import notificationRoutes from './routes/notification.js';
-import typingRoutes from './routes/typing.js';
-import messageRoutes from './routes/message.js';
-import { router as groupRoutes } from './routes/group.js';
-import socketHandler from "./socket.js"; 
-// Configure Passport
-import { configurePassport } from "./passport/passport.config.js";
-configurePassport();
-
-// Load .env config
+// Load environment variables
 dotenv.config();
-const port = process.env.PORT ;
+const port = process.env.PORT || 3000;
 const uri = process.env.MONGO_URI;
 const secret = process.env.SESSION_SECRET;
 
@@ -40,56 +31,74 @@ store.on("error", (error) => console.log("Session store error:", error.message))
 // Express & HTTP server setup
 const app = express();
 const httpServer = http.createServer(app);
-
-// Correct import: Use `Server` from `socket.io`
-import { Server } from "socket.io";
 const io = new Server(httpServer, {
   cors: { origin: "*" },
 });
-socketHandler(io); // Attach your Socket.IO logic
 
-// Middleware setup
-app.use(
-  cors({
-    credentials: true,
-    origin: "*", // Change to frontend origin in production
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-app.use(express.json());
+// Socket handler
+import socketHandler from "./socket.js";
+socketHandler(io);
+
+// Security and CORS middleware
 app.use(helmet());
-app.use(
-  session({
-    secret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7, httpOnly: true },
-    store,
-  })
-);
+app.use(cors({
+  credentials: true,
+  origin: "*", // In production, set to your frontend domain
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+// Body parsing
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session middleware
+app.use(session({
+  secret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    httpOnly: true,
+  },
+  store,
+}));
+
+// Passport config
+import { configurePassport } from "./passport/passport.config.js";
+configurePassport();
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Use routes
-app.use("/api/messages", messageRoutes);
+// Routes
+import authRoutes from "./routes/auth.js";
+import chatRoutes from "./routes/chat.js";
+import messageRoutes from "./routes/message.js";
+import typingRoutes from "./routes/typing.js";
+import notificationRoutes from "./routes/notification.js";
+import { router as groupRoutes } from "./routes/group.js";
+import transactionRoutes from "./routes/transaction.route.js";
+
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
-app.use("/api/notifications", notificationRoutes);
+app.use("/api/messages", messageRoutes);
 app.use("/api/typing", typingRoutes);
-app.use("/api/groups", groupRoutes); // Group routes setup
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/groups", groupRoutes);
+app.use("/api/transactions", transactionRoutes); // ✅ MOUNTED ONLY ONCE
 
-// Apollo GraphQL server setup
+// GraphQL setup
 import mergedTypeDef from "./typeDefs/index.js";
 import mergedResolvers from "./resolvers/index.js";
+
 const server = new ApolloServer({
   typeDefs: mergedTypeDef,
   resolvers: mergedResolvers,
   plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
 });
 
-// GraphQL Middleware
 await server.start();
+
 app.use(
   "/graphql",
   expressMiddleware(server, {
@@ -101,19 +110,19 @@ app.use(
 import connectToMongoDB from "./db/mongo.db.js";
 await connectToMongoDB(uri);
 
+// Error handler
+app.use((err, req, res, next) => {
+  console.error("Internal server error:", err.stack);
+  res.status(500).json({ message: "Something broke!" });
+});
+
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   await httpServer.close();
   console.log("Server shut down gracefully");
 });
 
-// Error handler middleware
-app.use((err, req, res, next) => {
-  console.error("Internal server error:", err.stack);
-  res.status(500).json({ message: "Something broke!" });
-});
-
-// Start the server
+// Start server
 httpServer.listen(port, () => {
-  console.log(`🚀 Server ready at http://localhost:${port}`);
+  console.log(`🚀 Server running at http://localhost:${port}`);
 });

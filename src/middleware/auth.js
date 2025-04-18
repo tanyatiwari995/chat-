@@ -1,26 +1,29 @@
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 
+// General authentication middleware: supports session and JWT
 const auth = (req, res, next) => {
-  // Check for session-based authentication first
+  //  Session-based authentication
   if (req.session?.user) {
-    req.user = req.session.user; // Attach the session user to the request object
-    return next(); // Proceed to the next middleware or route handler
+    req.user = req.session.user;
+    return next();
   }
 
-  // Check for JWT-based authentication if no session exists
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+  //  JWT-based authentication
+  const authHeader = req.header("Authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
   if (token) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET); // Decode and verify the token
-      req.user = decoded; // Attach the user from the decoded JWT token to the request object
-      return next(); // Proceed to the next middleware or route handler
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+      return next();
     } catch (err) {
-      return res.status(401).json({ message: 'Invalid or expired token' });
+      return res.status(401).json({ message: "Invalid or expired token" });
     }
   }
 
-  // If neither session nor token is found, return Unauthorized
-  return res.status(401).json({ message: 'Unauthorized' });
+  //  If neither session nor JWT token is valid
+  return res.status(401).json({ message: "Unauthorized" });
 };
 
 export default auth;

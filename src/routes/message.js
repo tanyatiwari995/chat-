@@ -11,7 +11,7 @@ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 // Create a new message
 router.post('/send', auth, async (req, res) => {
   const { text, sender, receiver, group } = req.body;
-
+ console.log(req.body)
   if (!text || !sender || !receiver) {
     return res.status(400).json({ error: "Text, sender, and receiver are required" });
   }
