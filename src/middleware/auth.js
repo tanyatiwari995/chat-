@@ -1,80 +1,46 @@
-import passport from "passport";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import User from "../models/user.model.js";
-import { GraphQLLocalStrategy } from "graphql-passport";
+import jwt from 'jsonwebtoken';
+import User from '../models/user.model.js';
 
-// =====================
-// Passport Configuration
-// =====================
-export const configurePassport = () => {
-  passport.serializeUser((user, done) => {
-    console.log("Serializing user");
-    done(null, user.id);
-  });
+// Authentication middleware
+export default async function auth(req, res, next) {
+  try {
+    // Get the token from the Authorization header
+    const authHeader = req.headers.authorization;
 
-  passport.deserializeUser(async (id, done) => {
-    console.log("Deserializing user");
-    try {
-      const user = await User.findById(id);
-      done(null, user);
-    } catch (err) {
-      done(err);
+    // Check if the Authorization header is missing
+    if (!authHeader) {
+      return res.status(401).json({ success: false, message: 'Authorization header missing' });
     }
-  });
 
-  passport.use(
-    new GraphQLLocalStrategy(async (username, password, done) => {
-      try {
-        const user = await User.findOne({ username });
-        if (!user) {
-          return done(new Error("Invalid username or password"));
-        }
-
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-          return done(new Error("Invalid username or password"));
-        }
-
-        return done(null, user);
-      } catch (err) {
-        return done(err);
-      }
-    })
-  );
-};
-
-// =====================
-// Unified Auth Middleware
-// =====================
-const auth = (req, res, next) => {
-  // 1. Check for session-based user
-  if (req.session?.user) {
-    req.user = req.session.user;
-    return next();
-  }
-
-  // 2. Check for Bearer Token (JWT)
-  const authHeader = req.header("Authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.split(" ")[1];
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = decoded;
-      return next();
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
+    // Check if the token format is correct (Bearer <token>)
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Invalid token format, must start with Bearer' });
     }
-  }
 
-  // 3. Fallback to Passport session authentication
-  passport.authenticate("session", { session: false }, (err, user) => {
-    if (err || !user) {
-      return res.status(401).json({ message: "Unauthorized" });
+    // Extract the token (remove "Bearer " part)
+    const token = authHeader.split(' ')[1];
+
+    // Verify the token using the secret key
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Find the user by ID from the token
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User not found or token is invalid' });
     }
+
+    // Attach the user document to the request object for later use
     req.user = user;
     next();
-  })(req, res, next);
-};
+  } catch (err) {
+    console.error('Auth Error:', err);
 
-export default auth;
+    // Specific handling for expired tokens
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ success: false, message: 'Token expired' });
+    }
+
+    // Handle other errors (invalid token or general issues)
+    res.status(401).json({ success: false, message: 'Unauthorized', error: err.message });
+  }
+}

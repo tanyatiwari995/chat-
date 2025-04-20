@@ -25,10 +25,10 @@ import authRoutes from "./routes/auth.js";
 import chatRoutes from "./routes/chat.js";
 import messageRoutes from "./routes/message.js";
 import typingRoutes from "./routes/typing.js";
-// import notificationRoutes from "./routes/notification.js";
 import { router as groupRoutes } from "./routes/group.js";
 import transactionRoutes from "./routes/transaction.routes.js";
-import { notificationRoutes } from './routes/notification.js'; 
+import { notificationRoutes } from './routes/notification.js';
+
 // Socket handler
 import socketHandler from "./socket.js";
 
@@ -47,7 +47,19 @@ async function startServer() {
 
   const app = express();
   const httpServer = http.createServer(app);
+  // import session from "express-session";
 
+  app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false, // should be true if using HTTPS
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    }
+  }));
+  
   // Security & parsing middleware
   app.use(helmet());
   app.use(cors({
@@ -61,19 +73,30 @@ async function startServer() {
   const MongoDBStore = connectMongoDBSession(session);
   const store = new MongoDBStore({ uri: MONGO_URI, collection: "sessions" });
   store.on("error", console.error);
-
-  // Session & Passport setup
   app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store,
+    store, // Make sure this is correct, otherwise remove if unnecessary
     cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Update to 'true' when deploying with HTTPS
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
   }));
+  
+  // Session & Passport setup
+  // app.use(session({
+  //   secret: SESSION_SECRET,
+  //   resave: false,
+  //   saveUninitialized: false,
+  //   store,
+  //   cookie: {
+  //     maxAge: 7 * 24 * 60 * 60 * 1000,
+  //     httpOnly: true,
+  //     secure: process.env.NODE_ENV === "production",
+  //   },
+  // }));
 
   configurePassport();
   app.use(passport.initialize());
@@ -127,7 +150,7 @@ async function startServer() {
 
   // Start server
   httpServer.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
+    console.log(` Server running at http://localhost:${PORT}`);
   });
 
   // Graceful shutdown

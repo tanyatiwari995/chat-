@@ -1,110 +1,129 @@
-import express from "express";
-import auth from "../middleware/auth.js";
-import Transaction from "../models/transaction.model.js";
+import express from 'express';
+import mongoose from 'mongoose';
+import auth from '../middleware/auth.js';
+import Transaction from '../models/transaction.model.js';
 
-// Validation function for transaction data
+const router = express.Router();
+
+// Helper function to validate MongoDB ObjectId
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// Validation for transaction payload
 const validateTransactionData = (req, res, next) => {
   const { description, paymentType, category, amount, date } = req.body;
-
-  if (!description || !paymentType || !category || !amount || !date) {
-    return res.status(400).json({ message: "Missing required fields" });
+  if (!description || !paymentType || !category || amount == null || !date) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
   next();
 };
 
-const router = express.Router();
-
-// GET all transactions for the authenticated user
-router.get("/", auth, async (req, res) => {
+// GET all transactions for authenticated user
+router.get('/', auth, async (req, res) => {
   try {
     const transactions = await Transaction.find({ userId: req.user._id });
-    res.json(transactions);
-  } catch (error) {
-    console.error("Error fetching transactions:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch transactions", error: error.message });
+    res.status(200).json({ success: true, data: transactions });
+  } catch (err) {
+    console.error('Fetch Error:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// GET a single transaction by ID
+router.get('/:transactionId', auth, async (req, res) => {
+  const { transactionId } = req.params;
+  if (!isValidObjectId(transactionId)) {
+    return res.status(400).json({ success: false, message: 'Invalid transaction ID' });
+  }
+
+  try {
+    const transaction = await Transaction.findById(transactionId);
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
+    // Ensure the transaction belongs to the authenticated user
+    if (transaction.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    res.status(200).json({ success: true, data: transaction });
+  } catch (err) {
+    console.error('Fetch by ID Error:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 });
 
 // POST create a new transaction
-router.post("/", auth, validateTransactionData, async (req, res) => {
+router.post('/', auth, validateTransactionData, async (req, res) => {
   try {
-    const { description, paymentType, category, amount, date, location, isRecurring } = req.body;
+    const payload = { ...req.body, userId: req.user._id };
+    const newTransaction = new Transaction(payload);
+    const saved = await newTransaction.save();
+    res.status(201).json({ success: true, data: saved });
+  } catch (err) {
+    console.error('Create Error:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
 
-    const newTransaction = new Transaction({
-      description,
-      paymentType,
-      category,
-      amount,
-      date,
-      location: location || "Unknown", // Default location if not provided
-      isRecurring: isRecurring || false, // Default value for isRecurring
-      userId: req.user._id, // Associate the transaction with the authenticated user
+// PUT update a transaction by ID
+router.put('/:transactionId', auth, validateTransactionData, async (req, res) => {
+  const { transactionId } = req.params;
+  if (!isValidObjectId(transactionId)) {
+    return res.status(400).json({ success: false, message: 'Invalid transaction ID' });
+  }
+
+  try {
+    const existing = await Transaction.findById(transactionId);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
+    // Ensure the transaction belongs to the authenticated user
+    if (existing.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    // Only allow specific fields to be updated
+    const allowedUpdates = ['description', 'paymentType', 'category', 'amount', 'date', 'location', 'isRecurring'];
+    const updates = {};
+    allowedUpdates.forEach((field) => {
+      if (req.body[field] != null) {
+        updates[field] = req.body[field];
+      }
     });
 
-    await newTransaction.save();
-    res.status(201).json(newTransaction);
-  } catch (error) {
-    console.error("Error creating transaction:", error);
-    res.status(400).json({ success: false, message: "Failed to create transaction", error: error.message });
+    const updated = await Transaction.findByIdAndUpdate(transactionId, updates, { new: true });
+    res.status(200).json({ success: true, data: updated });
+  } catch (err) {
+    console.error('Update Error:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 });
 
-// GET a single transaction by ID (secured to owner)
-router.get("/:id", auth, async (req, res) => {
-  try {
-    const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) {
-      return res.status(404).json({ success: false, message: "Transaction not found" });
-    }
-
-    if (transaction.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: "Unauthorized access to this transaction" });
-    }
-
-    res.json(transaction);
-  } catch (error) {
-    console.error("Error fetching transaction:", error);
-    res.status(500).json({ success: false, message: "Error fetching transaction", error: error.message });
+// DELETE a transaction by ID
+router.delete('/:transactionId', auth, async (req, res) => {
+  const { transactionId } = req.params;
+  if (!isValidObjectId(transactionId)) {
+    return res.status(400).json({ success: false, message: 'Invalid transaction ID' });
   }
-});
 
-// PUT update a transaction by ID (secured to owner)
-router.put("/:id", auth, validateTransactionData, async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) {
-      return res.status(404).json({ success: false, message: "Transaction not found" });
+    const existing = await Transaction.findById(transactionId);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    if (transaction.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: "Unauthorized access to this transaction" });
+    // Ensure the transaction belongs to the authenticated user
+    if (existing.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
-    const updatedTransaction = await Transaction.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updatedTransaction);
-  } catch (error) {
-    console.error("Error updating transaction:", error);
-    res.status(500).json({ success: false, message: "Error updating transaction", error: error.message });
-  }
-});
-
-// DELETE a transaction by ID (secured to owner)
-router.delete("/:id", auth, async (req, res) => {
-  try {
-    const transaction = await Transaction.findById(req.params.id);
-    if (!transaction) {
-      return res.status(404).json({ success: false, message: "Transaction not found" });
-    }
-
-    if (transaction.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: "Unauthorized access to this transaction" });
-    }
-
-    await Transaction.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "Transaction deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting transaction:", error);
-    res.status(500).json({ success: false, message: "Error deleting transaction", error: error.message });
+    await existing.remove();
+    res.status(200).json({ success: true, message: 'Transaction deleted' });
+  } catch (err) {
+    console.error('Delete Error:', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 });
 
