@@ -27,7 +27,7 @@ import messageRoutes from "./routes/message.js";
 import typingRoutes from "./routes/typing.js";
 import { router as groupRoutes } from "./routes/group.js";
 import transactionRoutes from "./routes/transaction.routes.js";
-import { notificationRoutes } from './routes/notification.js';
+import { notificationRoutes } from "./routes/notification.js";
 
 // Socket handler
 import socketHandler from "./socket.js";
@@ -49,23 +49,29 @@ async function startServer() {
   const httpServer = http.createServer(app);
   // import session from "express-session";
 
-  app.use(session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: false, // should be true if using HTTPS
-      maxAge: 24 * 60 * 60 * 1000 // 1 day
-    }
-  }));
-  
+  app.use(
+    session({
+      secret: SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: false, // should be true if using HTTPS
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+      },
+    })
+  );
+
   // Security & parsing middleware
   app.use(helmet());
-  app.use(cors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*",
-    credentials: true,
-  }));
+  app.use(
+    cors({
+      origin: process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(",")
+        : "*",
+      credentials: true,
+    })
+  );
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
@@ -73,38 +79,32 @@ async function startServer() {
   const MongoDBStore = connectMongoDBSession(session);
   const store = new MongoDBStore({ uri: MONGO_URI, collection: "sessions" });
   store.on("error", console.error);
-  app.use(session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    store, // Make sure this is correct, otherwise remove if unnecessary
-    cookie: {
-      httpOnly: true,
-      secure: false, // Update to 'true' when deploying with HTTPS
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    },
-  }));
-  
-  // Session & Passport setup
-  // app.use(session({
-  //   secret: SESSION_SECRET,
-  //   resave: false,
-  //   saveUninitialized: false,
-  //   store,
-  //   cookie: {
-  //     maxAge: 7 * 24 * 60 * 60 * 1000,
-  //     httpOnly: true,
-  //     secure: process.env.NODE_ENV === "production",
-  //   },
-  // }));
+  app.use(
+    session({
+      secret: SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      store, // Make sure this is correct, otherwise remove if unnecessary
+      cookie: {
+        httpOnly: true,
+        secure: false, // Update to 'true' when deploying with HTTPS
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+      },
+    })
+  );
 
-  configurePassport();
-  app.use(passport.initialize());
-  app.use(passport.session());
+  // configurePassport();
+  // app.use(passport.initialize());
+  // app.use(passport.session());
 
   // Socket.IO setup
   const io = new Server(httpServer, {
-    cors: { origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*", credentials: true },
+    cors: {
+      origin: process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(",")
+        : "*",
+      credentials: true,
+    },
   });
   socketHandler(io);
 
@@ -145,7 +145,9 @@ async function startServer() {
   // 404 Not Found (last)
   app.use((req, res) => {
     console.log(`404 Not Found: ${req.method} ${req.originalUrl}`);
-    res.status(404).json({ message: `Cannot ${req.method} ${req.originalUrl}` });
+    res
+      .status(404)
+      .json({ message: `Cannot ${req.method} ${req.originalUrl}` });
   });
 
   // Start server
@@ -159,7 +161,7 @@ async function startServer() {
   });
 }
 
-startServer().catch(err => {
+startServer().catch((err) => {
   console.error("Failed to start server:", err);
   process.exit(1);
 });

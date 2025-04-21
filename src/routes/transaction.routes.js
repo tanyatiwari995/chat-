@@ -29,7 +29,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // GET a single transaction by ID
-router.get('/:transactionId', auth, async (req, res) => {
+router.post('/:transactionId', auth, async (req, res) => {
   const { transactionId } = req.params;
   if (!isValidObjectId(transactionId)) {
     return res.status(400).json({ success: false, message: 'Invalid transaction ID' });

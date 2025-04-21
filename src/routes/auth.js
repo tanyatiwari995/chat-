@@ -11,16 +11,22 @@ const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
 
 // Middleware: Supports both JWT and session-based auth
 const auth = (req, res, next) => {
+  console.log(auth);
+  
   if (req.session?.user) {
     req.user = req.session.user;
     return next();
   }
 
   const token = req.headers.authorization?.split(" ")[1];
+  console.log(token);
+  
   if (!token) return res.status(401).json({ message: "Missing token" });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log(decoded);
+    
     req.user = decoded;
     next();
   } catch (err) {
