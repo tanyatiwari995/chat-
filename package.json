@@ -9,6 +9,7 @@
     "dev": "nodemon index.js",
     "test": "tape tests/*.js"
   },
+  "license": "MIT",
   "dependencies": {
     "@apollo/server": "^4.12.0",
     "accepts": "^2.0.0",
