@@ -1,21 +1,18 @@
-import express from 'express';
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const router = express.Router();
-
-// Define your routes
-router.get('/', (req, res) => {
-  res.send('Group Routes');
-});
-
-// Group schema definition
 const groupSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  members: { type: [String], required: true }, // user IDs
+  members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  admins: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  createdAt: { type: Date, default: Date.now },
+  messages: [{ type: mongoose.Schema.Types.ObjectId, ref: "Message" }],
+  unreadCount: {
+    type: Map,
+    of: Number,
+    default: {},
+  },
 });
 
-// Export the mongoose model
-const Group = mongoose.model('Group', groupSchema);
-
-// Named export for router and model
-export { router, Group };
+const Group = mongoose.model("Group", groupSchema);
+export default Group;

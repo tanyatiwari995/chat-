@@ -1,83 +1,34 @@
 import express from "express";
-import mongoose from "mongoose";
+import {
+  createGroup,
+  getAllGroups,
+  getGroupById,
+  deleteGroupById,
+  addMember,
+  removeMember,
+  renameGroup,
+  assignAdmin,
+  sendMessage,
+  markMessageAsRead,
+} from "../controllers/group.controller.js";
+
+import auth from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Define the group schema
-const groupSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  members: { type: [String], required: true }, // user IDs
-});
+router.get("/", (req, res) => res.send("Group Routes"));
 
-// Create the Group model from the schema
-const Group = mongoose.model("Group", groupSchema);
-console.log(Group);
+router.post("/group", auth, createGroup);
+router.get("/group", auth, getAllGroups);
+router.get("/group/:id", auth, getGroupById);
+router.delete("/group/:id", auth, deleteGroupById);
 
-// Define your routes
-router.get("/", (req, res) => {
-  res.send("Group Routes");
-});
+router.post("/group/:groupId/add-member", auth, addMember);
+router.post("/group/:groupId/remove-member", auth, removeMember);
+router.put("/group/:groupId/rename", auth, renameGroup);
+router.post("/group/:groupId/assign-admin", auth, assignAdmin);
 
-// POST: Create a new group
-router.post("/group", async (req, res) => {
-  const { name, members } = req.body; // Get data from request body
+router.post("/group/:groupId/send-message", auth, sendMessage);
+router.post("/group/:groupId/mark-read", auth, markMessageAsRead);
 
-  if (!name || !members) {
-    return res
-      .status(400)
-      .json({ error: "Group name and members are required." });
-  }
-
-  try {
-    const newGroup = new Group({ name, members });
-    console.log(newGroup);
-    
-    await newGroup.save(); // Save the group to the database
-    res.status(201).json(newGroup); // Return the created group
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET: Get all groups
-router.get("/group", async (req, res) => {
-  try {
-    const groups = await Group.find(); // Fetch all groups from the database
-    res.json(groups);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET: Get a single group by ID
-router.get("/group/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const group = await Group.findById(id); // Find the group by ID
-    if (!group) {
-      return res.status(404).json({ error: "Group not found." });
-    }
-    res.json(group); // Return the group details
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE: Delete a group by ID
-router.delete("/group/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const group = await Group.findByIdAndDelete(id); // Find and delete the group by ID
-    if (!group) {
-      return res.status(404).json({ error: "Group not found." });
-    }
-    res.json({ message: "Group deleted successfully." }); // Confirmation message
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Export the router and the model
-export { router, Group };
+export default router;

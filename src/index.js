@@ -1,6 +1,8 @@
+// Load environment variables
 import dotenv from "dotenv";
 dotenv.config();
 
+// Core dependencies
 import express from "express";
 import http from "http";
 import cors from "cors";
@@ -8,15 +10,20 @@ import helmet from "helmet";
 import session from "express-session";
 import connectMongoDBSession from "connect-mongodb-session";
 import passport from "passport";
+
+// Apollo GraphQL
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
 import { buildContext } from "graphql-passport";
+
+// Real-time Socket.IO
 import { Server } from "socket.io";
 
+// Database
 import connectToMongoDB from "./db/mongo.db.js";
 
-// Passport and auth middleware
+// Auth & middleware
 import { configurePassport } from "./passport/passport.config.js";
 import authMiddleware from "./middleware/auth.js";
 
@@ -25,7 +32,7 @@ import authRoutes from "./routes/auth.js";
 import chatRoutes from "./routes/chat.js";
 import messageRoutes from "./routes/message.js";
 import typingRoutes from "./routes/typing.js";
-import { router as groupRoutes } from "./routes/group.js";
+import groupRoutes from "./routes/group.js"; 
 import transactionRoutes from "./routes/transaction.routes.js";
 import { notificationRoutes } from "./routes/notification.js";
 
@@ -38,7 +45,7 @@ import mergedResolvers from "./resolvers/index.js";
 
 // Main async start function
 async function startServer() {
-  const PORT = process.env.PORT || 3007;
+  const PORT = process.env.PORT || 3010;
   const MONGO_URI = process.env.MONGO_URI;
   const SESSION_SECRET = process.env.SESSION_SECRET;
 
@@ -47,22 +54,30 @@ async function startServer() {
 
   const app = express();
   const httpServer = http.createServer(app);
-  // import session from "express-session";
+
+  // Session store setup
+  const MongoDBStore = connectMongoDBSession(session);
+  const store = new MongoDBStore({ uri: MONGO_URI, collection: "sessions" });
+  store.on("error", console.error);
 
   app.use(
     session({
       secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
+      store,
       cookie: {
         httpOnly: true,
-        secure: false, // should be true if using HTTPS
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 24 * 60 * 60 * 1000,
       },
     })
   );
 
-  // Security & parsing middleware
+  configurePassport();
+  app.use(passport.initialize());
+  app.use(passport.session());
+
   app.use(helmet());
   app.use(
     cors({
@@ -75,29 +90,7 @@ async function startServer() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Session store
-  const MongoDBStore = connectMongoDBSession(session);
-  const store = new MongoDBStore({ uri: MONGO_URI, collection: "sessions" });
-  store.on("error", console.error);
-  app.use(
-    session({
-      secret: SESSION_SECRET,
-      resave: false,
-      saveUninitialized: false,
-      store, // Make sure this is correct, otherwise remove if unnecessary
-      cookie: {
-        httpOnly: true,
-        secure: false, // Update to 'true' when deploying with HTTPS
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-      },
-    })
-  );
-
-  // configurePassport();
-  // app.use(passport.initialize());
-  // app.use(passport.session());
-
-  // Socket.IO setup
+  // Socket.IO
   const io = new Server(httpServer, {
     cors: {
       origin: process.env.CORS_ORIGIN
@@ -113,7 +106,7 @@ async function startServer() {
     res.json({ message: "You are authenticated!", user: req.user });
   });
 
-  // REST API route mounts
+  // REST API routes
   app.use("/api/auth", authRoutes);
   app.use("/api/chat", chatRoutes);
   app.use("/api/messages", messageRoutes);
@@ -122,13 +115,14 @@ async function startServer() {
   app.use("/api/groups", groupRoutes);
   app.use("/api/transactions", transactionRoutes);
 
-  // ApolloServer (GraphQL) setup
+  // GraphQL setup
   const apolloServer = new ApolloServer({
     typeDefs: mergedTypeDefs,
     resolvers: mergedResolvers,
     plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
   });
   await apolloServer.start();
+
   app.use(
     "/graphql",
     expressMiddleware(apolloServer, {
@@ -136,13 +130,13 @@ async function startServer() {
     })
   );
 
-  // Global error handler
+  // Error handler
   app.use((err, req, res, next) => {
     console.error("Internal server error:", err);
     res.status(err.status || 500).json({ success: false, error: err.message });
   });
 
-  // 404 Not Found (last)
+  // 404
   app.use((req, res) => {
     console.log(`404 Not Found: ${req.method} ${req.originalUrl}`);
     res
@@ -152,7 +146,7 @@ async function startServer() {
 
   // Start server
   httpServer.listen(PORT, () => {
-    console.log(` Server running at http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
   });
 
   // Graceful shutdown

@@ -1,110 +1,46 @@
+import express from "express";
+import multer from "multer";
+import path from "path";
 
-import express from 'express';
-import multer from 'multer';
-import path from 'path';
-import Message from "../models/Message.js";  
-import auth from '../middleware/auth.js';  
+import auth from "../middleware/auth.js"; // Middleware to protect routes
+import {
+  uploadFile,
+  getChatHistory,
+  reactOnChat,
+  markChatRead,
+  editChat,
+  deleteChat,
+  sendChat,
+} from "../controllers/chat.controller.js";
 
 const router = express.Router();
 
-// Multer setup for file uploads
+// Multer setup for handling file uploads
 const storage = multer.diskStorage({
-  destination: './uploads/',
+  destination: "./uploads/",
   filename: (req, file, cb) =>
     cb(null, Date.now() + path.extname(file.originalname)),
 });
 const upload = multer({ storage });
 
-//  Get chat history between two users
-router.get('/:user1/:user2', async (req, res) => {
-  const { user1, user2 } = req.params;
-  try {
-    const messages = await Message.find({
-      $or: [
-        { sender: user1, receiver: user2 },
-        { sender: user2, receiver: user1 },
-      ],
-    }).sort({ createdAt: 1 });
-    res.json(messages);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get("/:user1/:user2", getChatHistory);
 
-// 📁 Upload file (image, video, etc.)
-router.post('/upload', upload.single('file'), (req, res) => {
+router.post("/upload", upload.single("file"), uploadFile);
+
+router.post("/react/:chatId", reactOnChat);
+
+router.post("/read/:chatId", markChatRead);
+
+router.post("/upload", upload.single("file"), (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
+    return res.status(400).json({ error: "No file uploaded" });
   }
   res.json({ url: `/uploads/${req.file.filename}` });
 });
+router.put("/edit/:id", editChat);
 
-// ❤️ React to a message
-router.post('/react/:id', async (req, res) => {
-  const { emoji, userId } = req.body;
-  try {
-    await Message.findByIdAndUpdate(req.params.id, {
-      $push: { reactions: { userId, emoji } },
-    });
-    res.sendStatus(200);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.delete("/:id", deleteChat);
 
-// Mark messages in a chat as read
-router.post('/read/:chatId', async (req, res) => {
-  const { userId } = req.body;
-  try {
-    await Message.updateMany(
-      { chatId: req.params.chatId, readBy: { $ne: userId } },
-      { $push: { readBy: userId } }
-    );
-    res.sendStatus(200);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-//  Edit a message
-router.put('/edit/:id', async (req, res) => {
-  const { text } = req.body;
-  try {
-    await Message.findByIdAndUpdate(req.params.id, {
-      text,
-      edited: true,
-    });
-    res.sendStatus(200);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 🗑️ Delete a message
-router.delete('/:id', async (req, res) => {
-  try {
-    await Message.findByIdAndDelete(req.params.id);
-    res.sendStatus(204);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 💬 Send a new message (protected route, requires authentication)
-router.post('/send', auth, async (req, res) => {
-  const { text, sender, receiver } = req.body;
-  try {
-    const newMessage = new Message({
-      text,
-      sender,
-      receiver,
-      createdAt: Date.now(),
-    });
-    await newMessage.save();
-    res.status(201).json({ message: 'Message sent!' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.post("/send", auth, sendChat);
 
 export default router;
