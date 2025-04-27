@@ -1,15 +1,16 @@
-import { Server } from "socket.io"; // Correct import
+import { Server } from "socket.io";
 import http from "http";
 import express from "express";
-import User from './models/user.model.js';
-import Message from './models/Message.js';
+import User from '../models/user.model.js';
+import Message from '../models/Message.js';
 
 const onlineUsers = new Map();
+let io; 
 
 const socketHandler = (httpServer) => {
-  const io = new Server(httpServer, {
+  io = new Server(httpServer, {
     cors: {
-      origin: "*", // Adjust this based on your frontend origin
+      origin: "*",
       methods: ["GET", "POST"],
     },
   });
@@ -79,5 +80,8 @@ const socketHandler = (httpServer) => {
 
   return io;
 };
+
+
+export const getSocketInstance = () => io;
 
 export default socketHandler;

@@ -20,6 +20,7 @@ import { buildContext } from "graphql-passport";
 // Real-time Socket.IO
 import { Server } from "socket.io";
 
+
 // Database
 import connectToMongoDB from "./db/mongo.db.js";
 
@@ -37,7 +38,8 @@ import transactionRoutes from "./routes/transaction.routes.js";
 import { notificationRoutes } from "./routes/notification.js";
 
 // Socket handler
-import socketHandler from "./socket.js";
+// import socketHandler from "./socket.js";
+import socketHandler from "./socket/socket.js";
 
 // GraphQL typeDefs & resolvers
 import mergedTypeDefs from "./typeDefs/index.js";

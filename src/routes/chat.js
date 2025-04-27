@@ -1,8 +1,10 @@
+// routes/chat.js
+
 import express from "express";
 import multer from "multer";
 import path from "path";
+import auth from "../middleware/auth.js";  // Importing the default export from auth.js
 
-import auth from "../middleware/auth.js"; // Middleware to protect routes
 import {
   uploadFile,
   getChatHistory,
@@ -15,11 +17,10 @@ import {
 
 const router = express.Router();
 
-// Multer setup for handling file uploads
+// Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: "./uploads/",
-  filename: (req, file, cb) =>
-    cb(null, Date.now() + path.extname(file.originalname)),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
 });
 const upload = multer({ storage });
 
@@ -37,10 +38,11 @@ router.post("/upload", upload.single("file"), (req, res) => {
   }
   res.json({ url: `/uploads/${req.file.filename}` });
 });
+
 router.put("/edit/:id", editChat);
 
 router.delete("/:id", deleteChat);
 
-router.post("/send", auth, sendChat);
+router.post("/send", auth, sendChat);  // Using auth middleware to protect the send chat route
 
 export default router;

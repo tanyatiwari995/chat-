@@ -21,7 +21,21 @@ const userSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["Male", "Female", "Other"],
+      enum: [
+        "Male",
+        "Female",
+        "Non-binary",
+        "Transgender",
+        "Intersex",
+        "Genderqueer",
+        "Agender",
+        "Bigender",
+        "Genderfluid",
+        "Two-Spirit",
+        "Other",
+        "Prefer not to say"
+      ],
+      default: "Prefer not to say"
     },
   },
   {
