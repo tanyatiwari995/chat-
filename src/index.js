@@ -20,7 +20,6 @@ import { buildContext } from "graphql-passport";
 // Real-time Socket.IO
 import { Server } from "socket.io";
 
-
 // Database
 import connectToMongoDB from "./db/mongo.db.js";
 
@@ -33,7 +32,7 @@ import authRoutes from "./routes/auth.js";
 import chatRoutes from "./routes/chat.js";
 import messageRoutes from "./routes/message.js";
 import typingRoutes from "./routes/typing.js";
-import groupRoutes from "./routes/group.js"; 
+import groupRoutes from "./routes/group.js";
 import transactionRoutes from "./routes/transaction.routes.js";
 import { notificationRoutes } from "./routes/notification.js";
 
@@ -52,7 +51,9 @@ async function startServer() {
   const SESSION_SECRET = process.env.SESSION_SECRET;
 
   // Connect to MongoDB
-  await connectToMongoDB(MONGO_URI);
+  const connectionState = await connectToMongoDB(MONGO_URI);
+
+  if (connectionState !== 1) process.exit(1);
 
   const app = express();
   const httpServer = http.createServer(app);
